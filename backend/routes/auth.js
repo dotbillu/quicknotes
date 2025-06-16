@@ -1,131 +1,70 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+const express = require('express');
+const router = express.Router();
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const User = require('../models/User');
 
-export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const navigate = useNavigate();
+// Register route
+router.post('/register', async (req, res) => {
+    const { username, password } = req.body;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const endpoint = isLogin ? "/auth/login" : "/auth/register";
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required' });
+    }
 
     try {
-      const response = await fetch(`http://localhost:3000${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        if (isLogin) {
-          // On successful login, store token and navigate to notes
-          localStorage.setItem("token", data.token);
-          navigate("/notes");
-        } else {
-          // On successful registration, switch to login form
-          alert("Registration successful! Please login.");
-          setIsLogin(true);
-          setUsername("");
-          setPassword("");
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(400).json({ message: 'Username is already taken' });
         }
-      } else {
-        alert(data.message || "Something went wrong");
-      }
-    } catch (err) {
-      alert("Server error");
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({
+            username,
+            password: hashedPassword
+        });
+
+        await newUser.save();
+        res.status(201).json({
+            message: "User registered successfully",
+            user: { username: newUser.username, _id: newUser._id }
+        });
+    } catch (error) {
+        console.error('Error registering user:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
-  };
+});
 
-  return (
-    <div
-      style={{
-        height: "100vh",
-        width: "100vw",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "#f0f0f0",
-      }}
-    >
-      <div
-        style={{
-          background: "white",
-          padding: "40px",
-          borderRadius: "10px",
-          boxShadow: "0 0 20px rgba(0, 0, 0, 0.1)",
-          width: "300px",
-        }}
-      >
-        <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
-          {isLogin ? "Login" : "Register"}
-        </h2>
+// Login route
+router.post('/login', async (req, res) => {
+    const { username, password } = req.body;
 
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            required
-            onChange={(e) => setUsername(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              marginBottom: "10px",
-              borderRadius: "5px",
-              border: "1px solid #ccc",
-            }}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            required
-            onChange={(e) => setPassword(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              marginBottom: "20px",
-              borderRadius: "5px",
-              border: "1px solid #ccc",
-            }}
-          />
-          <button
-            type="submit"
-            style={{
-              width: "100%",
-              padding: "10px",
-              backgroundColor: "#007bff",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer",
-            }}
-          >
-            {isLogin ? "Login" : "Register"}
-          </button>
-        </form>
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required' });
+    }
 
-        <p style={{ textAlign: "center", marginTop: "15px" }}>
-          {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#007bff",
-              cursor: "pointer",
-              textDecoration: "underline",
-            }}
-          >
-            {isLogin ? "Register here" : "Login here"}
-          </button>
-        </p>
-      </div>
-    </div>
-  );
-}
+    try {
+        const user = await User.findOne({ username });
+        if (!user) {
+            return res.status(400).json({ message: "User not found" });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid credentials" });
+        }
+
+        const token = jwt.sign(
+            { userId: user._id },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.json({ token });
+    } catch (error) {
+        console.error('Error logging in:', error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+module.exports = router;
