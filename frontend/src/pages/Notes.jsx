@@ -5,9 +5,13 @@ export default function Notes() {
   const [notes, setNotes] = useState([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const token = localStorage.getItem("token");
+  
+  // Use consistent API URL - change this based on your environment
+  const API_BASE_URL = "https://quicknotes-37g4.onrender.com"; // or "http://localhost:3000" for development
 
   useEffect(() => {
     if (!token) {
@@ -17,7 +21,7 @@ export default function Notes() {
 
     const fetchNotes = async () => {
       try {
-        const response = await fetch("http://localhost:3000/notes", {
+        const response = await fetch(`${API_BASE_URL}/notes`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) throw new Error("Failed to fetch notes");
@@ -37,42 +41,59 @@ export default function Notes() {
       return;
     }
 
+    setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/notes", {
+      const response = await fetch(`${API_BASE_URL}/notes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ title, content }),
+        body: JSON.stringify({ title: title.trim(), content: content.trim() }),
       });
+      
       const data = await response.json();
+      
       if (!response.ok) {
         alert(data.message || "Failed to add note");
         return;
       }
-      setNotes((prev) => [...prev, data.note]);
+      
+      // Add the new note to the list
+      setNotes((prev) => [...prev, data.note || data]);
       setTitle("");
       setContent("");
     } catch (error) {
-      alert("Failed to add note");
+      console.error("Error adding note:", error);
+      alert("Failed to add note. Please check your connection.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`http://localhost:3000/notes/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/notes/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      
       if (!res.ok) {
+        const data = await res.json();
         alert(data.message || "Failed to delete note");
         return;
       }
+      
       setNotes((prev) => prev.filter((note) => note._id !== id));
     } catch (error) {
-      alert("Failed to delete note");
+      console.error("Error deleting note:", error);
+      alert("Failed to delete note. Please check your connection.");
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      handleAddNote();
     }
   };
 
@@ -124,6 +145,7 @@ export default function Notes() {
             placeholder="Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            onKeyPress={handleKeyPress}
             style={{
               width: "100%",
               padding: "10px",
@@ -139,6 +161,7 @@ export default function Notes() {
             placeholder="Content"
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            onKeyPress={handleKeyPress}
             rows={4}
             style={{
               width: "100%",
@@ -153,20 +176,24 @@ export default function Notes() {
           />
           <button
             onClick={handleAddNote}
+            disabled={loading || !title.trim() || !content.trim()}
             style={{
               marginTop: "10px",
               padding: "10px 20px",
-              backgroundColor: "#007bff",
+              backgroundColor: loading || !title.trim() || !content.trim() ? "#ccc" : "#007bff",
               color: "white",
               border: "none",
               borderRadius: "5px",
-              cursor: "pointer",
+              cursor: loading || !title.trim() || !content.trim() ? "not-allowed" : "pointer",
               fontSize: "16px",
               width: "100%",
             }}
           >
-            Add Note
+            {loading ? "Adding..." : "Add Note"}
           </button>
+          <p style={{ fontSize: "12px", color: "#666", margin: "5px 0 0", textAlign: "center" }}>
+            Tip: Press Ctrl+Enter (Cmd+Enter on Mac) to add note quickly
+          </p>
         </div>
 
         {/* Horizontal line */}

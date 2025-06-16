@@ -13,11 +13,12 @@ export default function Auth() {
     const endpoint = isLogin ? "/auth/login" : "/auth/register";
 
     try {
-      const response = await fetch(`http://localhost:3000${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
+   const response = await fetch(`https://quicknotes-37g4.onrender.com${endpoint}`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ username, password }),
+});
+
 
       const data = await response.json();
 
