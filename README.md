@@ -1,12 +1,6 @@
-Absolutely — here's a **clean, modern, professional-looking `README.md`** for your **Quick Notes App**, using clear formatting, markdown icons, and a good visual layout.
-
----
-
-### ✅ Polished `README.md` for Your GitHub Repo:
-
 ```markdown
 # 📝 Quick Notes App
-
+LIVE AT https://quicknotes-frontend-no8f.onrender.com/
 A sleek, full-stack note-taking application built with **React**, **Express.js**, and **MongoDB**.
 
 Users can **register**, **log in**, and **create/update/delete** personal notes in a clean, responsive interface — perfect for jotting things down on the fly.
